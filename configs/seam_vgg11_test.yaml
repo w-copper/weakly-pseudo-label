@@ -1,0 +1,67 @@
+stages:
+  -
+    type: train_refine
+    model:
+      type:
+      backbone:
+        type: VGG
+        cfg: '11'
+        pretrain: False
+      cam_head:
+        type: AttentionMap
+        inc: 512
+        num_class: 5
+      refine:
+        type: SEAM
+        scale: 0.3
+    data:
+      type:
+      train:
+        type: Dataset
+        file_list: psa/gid/train_cls.txt
+        img_dir: D:/data/GID/ws/images
+        ann_dir: null
+        cam_dir: null
+        out_dir: D:/data/GID/ws/test
+        num_class: 5
+        pipelines:
+          -
+            type: LoadImage
+            bands: [0,1,2]
+      train_loader:
+        batch_size: 8
+      val:
+        type: Dataset
+        file_list: psa/gid/train_cls.txt
+        img_dir: D:/data/GID/ws/images
+        ann_dir: null
+        cam_dir: null
+        out_dir: D:/data/GID/ws/test
+        num_class: 5
+        pipelines:
+          -
+            type: LoadImage
+            bands: [0,1,2]
+      val_loader:
+        batch_size: 8
+    optim:
+      type: PolyOptimizer
+      lr: 0.001
+      weight_decay: 0.9
+      max_step: 36
+      
+  -
+    type: infer_refine
+    model:
+      type: pre
+    data:
+      test:
+        type: Dataset
+        file_list: psa/gid/train_cls.txt
+        img_dir: D:/data/GID/ws/images
+        ann_dir: null
+        cam_dir: null
+        out_dir: D:/data/GID/ws/test
+        num_class: 5
+      test_loader:
+        batch_size: 8
