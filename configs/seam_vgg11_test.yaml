@@ -21,7 +21,7 @@ stages:
       type:
       train:
         type: Dataset
-        file_list: psa/gid/train_cls.txt
+        file_list: configs/data/train_cls.txt
         img_dir: D:/data/GID/ws/images
         ann_dir: null
         cam_dir: null
@@ -31,11 +31,17 @@ stages:
           -
             type: LoadImage
             bands: [0,1,2]
+          -
+            type: Normalize
+            mean: [122.675, 116.669, 104.008]
+            std: [1.0, 1.0, 1.0]
+          -
+            type: ToTensor
       train_loader:
         batch_size: 8
       val:
         type: Dataset
-        file_list: psa/gid/train_cls.txt
+        file_list: configs/data/train_cls.txt
         img_dir: D:/data/GID/ws/images
         ann_dir: null
         cam_dir: null
@@ -45,14 +51,26 @@ stages:
           -
             type: LoadImage
             bands: [0,1,2]
+          -
+            type: Normalize
+            mean: [122.675, 116.669, 104.008]
+            std: [1.0, 1.0, 1.0]
+          -
+            type: ToTensor
       val_loader:
         batch_size: 8
     optim:
       type: PolyOptimizer
       lr: 0.001
       weight_decay: 0.9
-      max_step: 36
-      
+      max_step: 2000
+    runner:
+      checkpoint_callback: True
+      gpus: '0'
+      log_gpu_memory: True
+      max_steps: 3000
+      logger: True
+      default_root_dir: lightning_logs/seam_vgg11_test
   -
     type: infer_refine
     model:
@@ -60,11 +78,27 @@ stages:
     data:
       test:
         type: Dataset
-        file_list: psa/gid/train_cls.txt
+        file_list: configs/data/train_cls.txt
         img_dir: D:/data/GID/ws/images
         ann_dir: null
         cam_dir: null
         out_dir: D:/data/GID/ws/test
         num_class: 5
+        pipelines:
+          -
+            type: LoadImage
+            bands: [0,1,2]
+          -
+            type: Normalize
+            mean: [122.675, 116.669, 104.008]
+            std: [1.0, 1.0, 1.0]
+          -
+            type: ToTensor
       test_loader:
         batch_size: 8
+    runner:
+      gpus: '0'
+      log_gpu_memory: True
+      max_epochs: 1
+      logger: True
+      default_root_dir: lightning_logs/seam_vgg11_test

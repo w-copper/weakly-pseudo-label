@@ -1,6 +1,7 @@
 import pytorch_lightning as pl
 from weak_pseudo_label.model.base_mul_stage import PSModel
 from weak_pseudo_label.optim import build_optim
+from weak_pseudo_label.utils import save_cam
 
 class Trainer(pl.LightningModule):
 
@@ -29,6 +30,11 @@ class Trainer(pl.LightningModule):
                 loss += logs[k]
         self.log_dict(logs['log_vars'])
         return loss
+        
+    def test_step(self, batch, batch_idx, **kargs ):
+        outputs = self.model(batch, self.stage)
+        save_cam(outputs)
+        self.log_dict(outputs['log_vars'])
 
     def configure_optimizers(self):
         params = self.model.get_parameter_groups()

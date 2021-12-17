@@ -2,7 +2,7 @@
 import numpy as np
 from numpy import random
 # from numpy.core.fromnumeric import size
-
+import torch
 from ..build import PIPELINES
 from . import functional as F
 
@@ -548,3 +548,18 @@ class RandomCutOut(object):
         repr_str += f'fill_in={self.fill_in}, '
         repr_str += f'seg_fill_in={self.seg_fill_in})'
         return repr_str
+
+
+@PIPELINES.register_module()
+class ToTensor(object):
+
+    def __init__(self, keys = ('img', 'ann', 'sal', 'cam')) -> None:
+        super().__init__()
+    
+        self.keys = keys
+    
+    def __call__(self, data):
+        for k in self.keys:
+            if k in data and data[k] is not None:
+                data[k] = torch.from_numpy(data[k])
+        return data

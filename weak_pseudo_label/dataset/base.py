@@ -66,10 +66,10 @@ class Dataset(dataset.Dataset):
             infos.append(dict(
                 label = self.label_list[idx],
                 img_file=osp.join(self.img_dir, fn + self.img_suffix),
-                cam_file=None if self.cam_dir is None else osp.join(self.cam_dir, fn + self.cam_suffix),
-                ann_file=None if self.ann_dir is None else osp.join(self.ann_dir, fn + self.ann_suffix),
-                sal_file=None if self.sal_dir is None else osp.join(self.sal_dir, fn + self.sal_suffix),
-                out_file=None if self.out_dir is None else osp.join(self.out_dir, fn + self.out_suffix),
+                cam_file='No File' if self.cam_dir is None else osp.join(self.cam_dir, fn + self.cam_suffix),
+                ann_file='No File' if self.ann_dir is None else osp.join(self.ann_dir, fn + self.ann_suffix),
+                sal_file='No File' if self.sal_dir is None else osp.join(self.sal_dir, fn + self.sal_suffix),
+                out_file='No File' if self.out_dir is None else osp.join(self.out_dir, fn + self.out_suffix),
             ))
         return infos
 

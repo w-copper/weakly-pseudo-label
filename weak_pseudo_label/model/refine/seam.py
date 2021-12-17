@@ -70,9 +70,10 @@ class SEAM(nn.Module):
 
     def forward_train(self, info):
         img1 = info['img']
+        # print(img1.size())
         backbone = info['backbone']
         cam_head = info['cam_head']
-        img2 = F.interpolate(img1,scale_factor=self.scale,mode='bilinear',align_corners=True) 
+        img2 = F.interpolate(img1,scale_factor=(self.scale, self.scale),mode='bilinear',align_corners=True) 
         N,C,H,W = img1.size()
         label = info['label']
         if self.zero_is_bg:

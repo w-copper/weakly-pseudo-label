@@ -31,6 +31,7 @@ class LoadDataFromFile(object):
         if self.bands != 'all':
             arr = arr[self.bands]
         data[self.out] = arr
+        return data
     
 @PIPELINES.register_module()
 class LoadImage(LoadDataFromFile):
