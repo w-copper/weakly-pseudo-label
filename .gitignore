@@ -194,4 +194,4 @@ $RECYCLE.BIN/
 
 weak_pseudo_label.egg-info/
 
-lightning_logs/*
+lightning_logs/
