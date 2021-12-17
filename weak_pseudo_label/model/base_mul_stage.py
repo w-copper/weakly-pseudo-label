@@ -26,7 +26,8 @@ class PSModel(nn.Module):
         features = self.backbone(img)
         info['features'] = features
         loss = self.cam_head(info, return_loss = True)
-        return loss
+        results = dict(loss = loss, log_vars = dict(loss = loss.item()))
+        return results
 
     def infer_cam(self, info):
         img = info['img']

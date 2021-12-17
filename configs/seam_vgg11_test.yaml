@@ -13,6 +13,9 @@ stages:
         num_class: 5
       refine:
         type: SEAM
+        img_c: 3
+        feature1_c: 256
+        feature2_c: 512
         scale: 0.3
     data:
       type:

@@ -23,15 +23,15 @@ def max_onehot(x):
 
 @REFINE.register_module()
 class SEAM(nn.Module):
-    def __init__(self, zero_is_bg = False, scale = 0.3):
+    def __init__(self, img_c = 3, feature1_c = 256, feature2_c = 256, zero_is_bg = False, scale = 0.3):
         super(SEAM, self).__init__()
-        self.f8_3 = torch.nn.LazyConv2d(64, 1, bias=False)
-        self.f8_4 = torch.nn.LazyConv2d(128, 1, bias=False)
-        self.f9 = torch.nn.LazyConv2d(192, 1, bias=False)
+        self.f8_3 = torch.nn.Conv2d(feature1_c, 64, 1, bias=False)
+        self.f8_4 = torch.nn.Conv2d(feature2_c, 128, 1, bias=False)
+        self.f9 = torch.nn.Conv2d(192 + img_c, 192, 1, bias=False)
         
-        # torch.nn.init.kaiming_normal_(self.f8_3.weight)
-        # torch.nn.init.kaiming_normal_(self.f8_4.weight)
-        # torch.nn.init.xavier_uniform_(self.f9.weight, gain=4)
+        torch.nn.init.kaiming_normal_(self.f8_3.weight)
+        torch.nn.init.kaiming_normal_(self.f8_4.weight)
+        torch.nn.init.xavier_uniform_(self.f9.weight, gain=4)
         self.from_scratch_layers = [self.f8_3, self.f8_4, self.f9]
         self.scale = scale
         self.zero_is_bg = zero_is_bg
