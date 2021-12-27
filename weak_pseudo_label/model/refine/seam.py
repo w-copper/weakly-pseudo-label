@@ -17,8 +17,8 @@ def adaptive_min_pooling_loss(x):
     return loss
 
 def max_onehot(x):
-    x_max = torch.max(x[:,1:,:,:], dim=1, keepdim=True)[0]
-    x[:,1:,:,:][x[:,1:,:,:] != x_max] = 0
+    x_max = torch.max(x, dim=1, keepdim=True)[0]
+    x[x != x_max] = 0
     return x
 
 @REFINE.register_module()
@@ -35,16 +35,24 @@ class SEAM(nn.Module):
         self.from_scratch_layers = [self.f8_3, self.f8_4, self.f9]
         self.scale = scale
         self.zero_is_bg = zero_is_bg
+        self.start_dim = 1 if zero_is_bg else 0
     
-    def forward_one(self, x, backbone, cam_head):
+    def forward_one(self, data):
+        x = data['img']
+        # if 'cam' in data:
+        #     cam = data['cam']
+        backbone = data['backbone']
+        features = backbone(x)
+        cam_input = dict(features = features, label = data['label'])
+        cam = data['cam_head'](cam_input, return_loss = False)
         N, C, H, W = x.size()
-        d = backbone(x)
-        cam = cam_head(d)
         n,c,h,w = cam.size()
         with torch.no_grad():
+            # if self.zero_is_bg:
             cam_d_norm = calculate_bg_score(cam, self.zero_is_bg)
-        f8_3 = F.relu(self.f8_3(d[-2].detach()), inplace=True)
-        f8_4 = F.relu(self.f8_4(d[-3].detach()), inplace=True)
+            
+        f8_3 = F.relu(self.f8_3(features[-1].detach()), inplace=True)
+        f8_4 = F.relu(self.f8_4(features[-2].detach()), inplace=True)
         x_s = F.interpolate(x,(h,w),mode='bilinear',align_corners=True)
         f = torch.cat([x_s, f8_3, f8_4], dim=1)
         n,c,h,w = f.size()
@@ -55,7 +63,7 @@ class SEAM(nn.Module):
         
     def get_parameter_groups(self, groups:Tuple[List]):
         for m in self.modules():
-            if (isinstance(m, nn.Conv2d) or isinstance(m, nn.modules.normalization.GroupNorm)):
+            if (isinstance(m, nn.Conv2d) or isinstance(m, nn.GroupNorm)):
                 if m.weight.requires_grad:
                     if m in self.from_scratch_layers:
                         groups[2].append(m.weight)
@@ -70,38 +78,33 @@ class SEAM(nn.Module):
 
     def forward_train(self, info):
         img1 = info['img']
-        # print(img1.size())
-        backbone = info['backbone']
-        cam_head = info['cam_head']
         img2 = F.interpolate(img1,scale_factor=(self.scale, self.scale),mode='bilinear',align_corners=True) 
         N,C,H,W = img1.size()
         label = info['label']
-        if self.zero_is_bg:
-            pass
-        else:
-            bg_score = torch.ones((N,1))
-            label = torch.cat((bg_score, label), dim=1)
+        
         label = label.cuda(non_blocking=True).unsqueeze(2).unsqueeze(3)
-        cam1, cam_rv1 = self.forward_one(img1, backbone, cam_head)
+        info['img'] = img1
+        cam1, cam_rv1 = self.forward_one(info)
         label1 = F.adaptive_avg_pool2d(cam1, (1,1))
-        loss_rvmin1 = adaptive_min_pooling_loss((cam_rv1*label)[:,1:,:,:])
+        loss_rvmin1 = adaptive_min_pooling_loss((cam_rv1*label)[:,self.zero_is_bg:,:,:])
         cam1 = F.interpolate(max_norm(cam1),scale_factor=self.scale,mode='bilinear',align_corners=True)*label
         cam_rv1 = F.interpolate(max_norm(cam_rv1),scale_factor=self.scale,mode='bilinear',align_corners=True)*label
-
-        cam2, cam_rv2 = self.forward_one(img2, backbone, cam_head)
+        info['img'] = img2
+        cam2, cam_rv2 = self.forward_one(info)
         label2 = F.adaptive_avg_pool2d(cam2, (1,1))
-        loss_rvmin2 = adaptive_min_pooling_loss((cam_rv2*label)[:,1:,:,:])
+        loss_rvmin2 = adaptive_min_pooling_loss((cam_rv2*label)[:,self.zero_is_bg:,:,:])
         cam2 = max_norm(cam2)*label
         cam_rv2 = max_norm(cam_rv2)*label
 
-        loss_cls1 = F.multilabel_soft_margin_loss(label1[:,1:,:,:], label[:,1:,:,:])
-        loss_cls2 = F.multilabel_soft_margin_loss(label2[:,1:,:,:], label[:,1:,:,:])
+        loss_cls1 = F.multilabel_soft_margin_loss(label1[:,self.zero_is_bg:,:,:], label[:,self.zero_is_bg:,:,:])
+        loss_cls2 = F.multilabel_soft_margin_loss(label2[:,self.zero_is_bg:,:,:], label[:,self.zero_is_bg:,:,:])
 
         ns,cs,hs,ws = cam2.size()
-        loss_er = torch.mean(torch.abs(cam1[:,1:,:,:]-cam2[:,1:,:,:]))
-        #loss_er = torch.mean(torch.pow(cam1[:,1:,:,:]-cam2[:,1:,:,:], 2))
-        cam1[:,0,:,:] = 1-torch.max(cam1[:,1:,:,:],dim=1)[0]
-        cam2[:,0,:,:] = 1-torch.max(cam2[:,1:,:,:],dim=1)[0]
+        loss_er = torch.mean(torch.abs(cam1[:,self.zero_is_bg:,:,:]-cam2[:,self.zero_is_bg:,:,:]))
+        #loss_er = torch.mean(torch.pow(cam1[:,self.zero_is_bg:,:,:]-cam2[:,self.zero_is_bg:,:,:], 2))
+        if self.zero_is_bg:
+            cam1[:,0,:,:] = 1-torch.max(cam1[:,self.zero_is_bg:,:,:],dim=1)[0]
+            cam2[:,0,:,:] = 1-torch.max(cam2[:,self.zero_is_bg:,:,:],dim=1)[0]
         tensor_ecr1 = torch.abs(max_onehot(cam2.detach()) - cam_rv1)#*eq_mask
         tensor_ecr2 = torch.abs(max_onehot(cam1.detach()) - cam_rv2)#*eq_mask
         loss_ecr1 = torch.mean(torch.topk(tensor_ecr1.view(ns,-1), k=(int)(21*hs*ws*0.2), dim=-1)[0])
@@ -110,14 +113,18 @@ class SEAM(nn.Module):
 
         loss_cls = (loss_cls1 + loss_cls2)/2 + (loss_rvmin1 + loss_rvmin2)/2 
         loss = loss_cls + loss_er + loss_ecr
-
-        return loss
+        logs = dict(loss = loss, log_vars = dict( 
+            loss_cls = loss_cls,
+            loss_er = loss_er,
+            loss_ecr = loss_ecr
+         ))
+        return logs
 
     def forward_val(self, info):
         x = info['img']
-        backbone = info['backbone']
-        cam_head = info['cam_head']
-        _, cam = self.forward_one(x, backbone, cam_head)
+        # backbone = info['backbone']
+        # cam_head = info['cam_head']
+        _, cam = self.forward_one(info)
         return cam
 
     def forward(self, info, return_loss = True):

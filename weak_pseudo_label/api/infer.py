@@ -1,5 +1,5 @@
 import pytorch_lightning as pl
-from weak_pseudo_label.utils import save_cam
+from weak_pseudo_label.utils import save_output
 
 class Inferer(pl.LightningModule):
 
@@ -11,5 +11,6 @@ class Inferer(pl.LightningModule):
 
     def test_step(self, batch, batch_idx, **kargs ):
         outputs = self.model(batch, self.stage)
-        save_cam(outputs)
-        self.log_dict(outputs['log_vars'])
+        save_output(outputs, batch)
+        if 'log_vars' in outputs:
+            self.log_dict(outputs['log_vars'])

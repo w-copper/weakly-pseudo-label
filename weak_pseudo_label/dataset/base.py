@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.utils.data.dataset as dataset
 import torch.utils.data.dataloader as dataloader
@@ -62,6 +63,8 @@ class Dataset(dataset.Dataset):
     
     def pre_infos(self):
         infos = []
+        if not osp.exists(self.out_dir):
+            os.makedirs(self.out_dir, exist_ok=True)
         for idx, fn in enumerate(self.file_list):
             infos.append(dict(
                 label = self.label_list[idx],
@@ -71,6 +74,7 @@ class Dataset(dataset.Dataset):
                 sal_file='No File' if self.sal_dir is None else osp.join(self.sal_dir, fn + self.sal_suffix),
                 out_file='No File' if self.out_dir is None else osp.join(self.out_dir, fn + self.out_suffix),
             ))
+            
         return infos
 
     def __len__(self):

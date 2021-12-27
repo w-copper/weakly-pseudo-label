@@ -1,12 +1,13 @@
 stages:
   -
     type: train_refine
+    skip: True
     model:
       type:
       backbone:
         type: VGG
         cfg: '11'
-        pretrain: False
+        pretrain: True
       cam_head:
         type: AttentionMap
         inc: 512
@@ -14,7 +15,7 @@ stages:
       refine:
         type: SEAM
         img_c: 3
-        feature1_c: 256
+        feature1_c: 512
         feature2_c: 512
         scale: 0.3
     data:
@@ -60,10 +61,10 @@ stages:
       val_loader:
         batch_size: 8
     optim:
-      type: PolyOptimizer
+      type: SGDPolyOptimizer
       lr: 0.001
-      weight_decay: 0.9
-      max_step: 2000
+      weight_decay: 0.0005
+      max_step: 3000
     runner:
       checkpoint_callback: True
       gpus: '0'
@@ -73,9 +74,11 @@ stages:
       default_root_dir: lightning_logs/seam_vgg11_test
   -
     type: infer_refine
+    ckpt: lightning_logs/seam_vgg11_test/train_refine_train_refine/1639998600576_1639998600576/checkpoints/epoch=24-step=2999.ckpt
     model:
       type: pre
     data:
+      type:
       test:
         type: Dataset
         file_list: configs/data/train_cls.txt

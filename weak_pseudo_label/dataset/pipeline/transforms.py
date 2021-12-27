@@ -562,4 +562,6 @@ class ToTensor(object):
         for k in self.keys:
             if k in data and data[k] is not None:
                 data[k] = torch.from_numpy(data[k])
+                if k == 'ann':
+                    data[k] = data[k].long()
         return data
